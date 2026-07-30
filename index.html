@@ -36,6 +36,13 @@
   }
   #brand .dot{ width:6px; height:6px; border-radius:50%; background:var(--accent-yellow); }
   #filename{ color:var(--text-muted); font-size:11px; }
+  #home-btn{
+    background:none; border:1px solid var(--border); color:var(--text-muted);
+    border-radius:5px; font-size:10px; padding:4px 8px; cursor:pointer;
+    font-family:var(--font-ui); letter-spacing:0.05em; text-transform:uppercase;
+    margin-left:4px;
+  }
+  #home-btn:hover{ color:var(--text-white); border-color:var(--text-white); }
 
   /* drop / empty state */
   #empty-state{
@@ -120,6 +127,46 @@
     display:flex; align-items:center; justify-content:center; font-size:12px;
   }
   .clear-color:hover{ color:var(--text-white); border-color:var(--text-white); }
+  .swatch.disabled, .clear-color.disabled{ opacity:0.25; pointer-events:none; }
+
+  /* library overlay */
+  #library-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:30;
+    display:flex; align-items:center; justify-content:center;
+  }
+  #library-overlay.hidden{ display:none; }
+  #library-panel{
+    width:min(460px, 88vw); max-height:70vh; background:#151517;
+    border:1px solid var(--border); border-radius:12px; padding:22px;
+    display:flex; flex-direction:column; gap:14px;
+  }
+  .lib-header{ display:flex; align-items:center; justify-content:space-between; }
+  .lib-header h2{ font-size:16px; margin:0; color:var(--text-white); font-family:var(--font-ui); }
+  #lib-close{
+    background:none; border:none; color:var(--text-muted); font-size:18px;
+    cursor:pointer; line-height:1;
+  }
+  #lib-close:hover{ color:var(--text-white); }
+  #lib-list{ overflow-y:auto; display:flex; flex-direction:column; gap:6px; max-height:44vh; }
+  .lib-row{
+    display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px;
+    background:rgba(255,255,255,0.03); border:1px solid transparent; cursor:pointer;
+  }
+  .lib-row:hover{ background:rgba(255,255,255,0.07); }
+  .lib-row.current{ border-color:var(--accent-yellow); }
+  .lib-name{ color:var(--text-white); font-size:13px; flex-grow:1; font-family:var(--font-ui); }
+  .lib-date{ color:var(--text-muted); font-size:11px; font-family:var(--font-ui); white-space:nowrap; }
+  .lib-remove{
+    background:none; border:none; color:var(--text-muted); font-size:16px; cursor:pointer;
+    line-height:1; padding:2px 4px;
+  }
+  .lib-remove:hover{ color:#e6465a; }
+  .lib-empty{ color:var(--text-muted); font-size:13px; padding:12px 4px; }
+  #lib-new-btn{
+    align-self:flex-start; background:var(--accent-yellow); color:#1a1206; border:none;
+    padding:9px 16px; border-radius:7px; font-size:12.5px; font-weight:600; cursor:pointer;
+    font-family:var(--font-ui);
+  }
 
   .size-btn{
     width:26px; height:26px; border-radius:50%; border:1px solid var(--border);
@@ -145,7 +192,7 @@
 <body>
 
 <div id="stage">
-  <div id="brand"><span class="dot"></span>Prompter Plus <span id="filename"></span></div>
+  <div id="brand"><span class="dot"></span>Prompter Plus <span id="filename"></span><button id="home-btn">+ New / Home</button></div>
 
   <div id="empty-state">
     <b>Drop a .md script file anywhere to begin</b>
@@ -173,14 +220,15 @@
   </div>
 
   <div class="ctrl-cluster" id="top-right-ctrl">
+    <button class="chip" id="library-toggle">Library</button>
     <button class="chip" id="guides-toggle">Guides</button>
     <button class="chip active" id="align-toggle">Align: Center</button>
     <button class="chip" id="mode-toggle">Edit Script</button>
-    <button class="clear-color" id="clear-color-btn" title="Clear color">×</button>
-    <div class="swatch" data-c="green" title="Green"></div>
-    <div class="swatch" data-c="yellow" title="Yellow"></div>
-    <div class="swatch" data-c="purple" title="Purple"></div>
-    <div class="swatch" data-c="orange" title="Orange"></div>
+    <button class="clear-color disabled" id="clear-color-btn" title="Clear color">×</button>
+    <div class="swatch disabled" data-c="green" title="Green"></div>
+    <div class="swatch disabled" data-c="yellow" title="Yellow"></div>
+    <div class="swatch disabled" data-c="purple" title="Purple"></div>
+    <div class="swatch disabled" data-c="orange" title="Orange"></div>
   </div>
 
   <div class="ctrl-cluster" id="bottom-right-ctrl">
@@ -188,6 +236,17 @@
     <button class="size-btn" id="size-minus">–</button>
     <input type="range" id="size-slider" min="20" max="90" value="40">
     <button class="size-btn" id="size-plus">+</button>
+  </div>
+</div>
+
+<div id="library-overlay" class="hidden">
+  <div id="library-panel">
+    <div class="lib-header">
+      <h2>Script Library</h2>
+      <button id="lib-close">×</button>
+    </div>
+    <div id="lib-list"></div>
+    <button id="lib-new-btn">+ New Script</button>
   </div>
 </div>
 
@@ -199,6 +258,7 @@
 
   var SCRIPT_KEY = "prompterplus_script_v1";
   var PREFS_KEY  = "prompterplus_prefs_v1";
+  var LIBRARY_KEY = "prompterplus_library_v1";
 
   var stage = document.getElementById("stage");
   var scriptEl = document.getElementById("script");
@@ -207,6 +267,13 @@
   var dropGlow = document.getElementById("drop-glow");
   var fileInput = document.getElementById("file-input");
   var filenameEl = document.getElementById("filename");
+  var homeBtn = document.getElementById("home-btn");
+
+  var libraryToggle = document.getElementById("library-toggle");
+  var libraryOverlay = document.getElementById("library-overlay");
+  var libClose = document.getElementById("lib-close");
+  var libList = document.getElementById("lib-list");
+  var libNewBtn = document.getElementById("lib-new-btn");
 
   var guidesWrap = document.getElementById("guides");
   var guidesToggle = document.getElementById("guides-toggle");
@@ -242,7 +309,8 @@
     align: "center",
     guidesVisible: true,
     selectMode: false,
-    scrollOffset: 0
+    scrollOffset: 0,
+    currentId: null
   };
 
   // ---------- persistence ----------
@@ -262,9 +330,106 @@
   }
   function persistScript(){
     localStorage.setItem(SCRIPT_KEY, JSON.stringify({
-      html: scriptEl.innerHTML, name: filenameEl.textContent
+      html: scriptEl.innerHTML, name: filenameEl.textContent, id: state.currentId
     }));
+    if(state.currentId){
+      var lib = loadLibrary();
+      var entry = lib.find(function(e){ return e.id === state.currentId; });
+      if(entry){
+        entry.html = scriptEl.innerHTML;
+        entry.updatedAt = Date.now();
+        saveLibrary(lib);
+      }
+    }
   }
+
+  // ---------- library ----------
+  function loadLibrary(){
+    try{ var raw = localStorage.getItem(LIBRARY_KEY); return raw ? JSON.parse(raw) : []; }
+    catch(e){ return []; }
+  }
+  function saveLibrary(list){
+    localStorage.setItem(LIBRARY_KEY, JSON.stringify(list));
+  }
+  function uid(){
+    return "f_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,8);
+  }
+  function upsertLibraryEntry(name, html){
+    var lib = loadLibrary();
+    var existing = lib.find(function(e){ return e.name === name; });
+    if(existing){
+      existing.html = html;
+      existing.updatedAt = Date.now();
+      state.currentId = existing.id;
+    } else {
+      var entry = { id: uid(), name: name, html: html, updatedAt: Date.now() };
+      lib.push(entry);
+      state.currentId = entry.id;
+    }
+    saveLibrary(lib);
+  }
+  function goHome(){
+    scriptEl.innerHTML = "";
+    filenameEl.textContent = "";
+    state.currentId = null;
+    state.scrollOffset = 0;
+    localStorage.removeItem(SCRIPT_KEY);
+    emptyState.classList.remove("hidden");
+    renderScroll();
+  }
+  function openFromLibrary(id){
+    var lib = loadLibrary();
+    var entry = lib.find(function(e){ return e.id === id; });
+    if(!entry) return;
+    scriptEl.innerHTML = entry.html;
+    filenameEl.textContent = "— " + entry.name;
+    state.currentId = entry.id;
+    state.scrollOffset = 0;
+    emptyState.classList.add("hidden");
+    clampScroll();
+    renderScroll();
+    persistScript();
+    closeLibrary();
+  }
+  function removeFromLibrary(id){
+    var lib = loadLibrary().filter(function(e){ return e.id !== id; });
+    saveLibrary(lib);
+    if(state.currentId === id) goHome();
+    renderLibraryList();
+  }
+  function closeLibrary(){ libraryOverlay.classList.add("hidden"); }
+  function renderLibraryList(){
+    var lib = loadLibrary().sort(function(a,b){ return b.updatedAt - a.updatedAt; });
+    libList.innerHTML = "";
+    if(lib.length === 0){
+      libList.innerHTML = '<div class="lib-empty">No scripts yet — drop a .md file to add one.</div>';
+      return;
+    }
+    lib.forEach(function(entry){
+      var row = document.createElement("div");
+      row.className = "lib-row" + (entry.id === state.currentId ? " current" : "");
+      var d = new Date(entry.updatedAt);
+      row.innerHTML = '<span class="lib-name"></span><span class="lib-date"></span><button class="lib-remove" title="Remove">×</button>';
+      row.querySelector(".lib-name").textContent = entry.name;
+      row.querySelector(".lib-date").textContent = d.toLocaleDateString() + " " + d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+      row.addEventListener("click", function(ev){
+        if(ev.target.closest(".lib-remove")) return;
+        openFromLibrary(entry.id);
+      });
+      row.querySelector(".lib-remove").addEventListener("click", function(ev){
+        ev.stopPropagation();
+        if(confirm('Remove "' + entry.name + '" from your library?')) removeFromLibrary(entry.id);
+      });
+      libList.appendChild(row);
+    });
+  }
+  homeBtn.addEventListener("click", goHome);
+  libraryToggle.addEventListener("click", function(){
+    renderLibraryList();
+    libraryOverlay.classList.remove("hidden");
+  });
+  libClose.addEventListener("click", closeLibrary);
+  libNewBtn.addEventListener("click", function(){ goHome(); closeLibrary(); });
 
   // ---------- minimal markdown parser ----------
   function escapeHtml(s){
@@ -300,10 +465,12 @@
     if(!file) return;
     var reader = new FileReader();
     reader.onload = function(e){
-      scriptEl.innerHTML = parseMarkdown(String(e.target.result));
+      var html = parseMarkdown(String(e.target.result));
+      scriptEl.innerHTML = html;
       filenameEl.textContent = "— " + file.name;
       emptyState.classList.add("hidden");
       state.scrollOffset = 0;
+      upsertLibraryEntry(file.name, html);
       clampScroll();
       renderScroll();
       persistScript();
@@ -411,6 +578,8 @@
     scriptEl.contentEditable = editing ? "true" : "false";
     modeToggle.classList.toggle("active", editing);
     modeToggle.textContent = editing ? "Done Editing" : "Edit Script";
+    swatches.forEach(function(sw){ sw.classList.toggle("disabled", !editing); });
+    clearColorBtn.classList.toggle("disabled", !editing);
     if(editing){
       try{ document.execCommand("defaultParagraphSeparator", false, "p"); }catch(e){}
       scriptEl.focus();
@@ -534,8 +703,10 @@
     persistScript();
   }
   swatches.forEach(function(sw){
+    sw.addEventListener("mousedown", function(e){ e.preventDefault(); });
     sw.addEventListener("click", function(){ applyColor(colorMap[sw.dataset.c]); });
   });
+  clearColorBtn.addEventListener("mousedown", function(e){ e.preventDefault(); });
   clearColorBtn.addEventListener("click", clearColor);
 
   window.addEventListener("resize", function(){ renderMargins(); });
@@ -553,6 +724,7 @@
     if(saved && saved.html){
       scriptEl.innerHTML = saved.html;
       filenameEl.textContent = saved.name || "";
+      state.currentId = saved.id || null;
       emptyState.classList.add("hidden");
     }
     guidesWrap.classList.toggle("hidden", !state.guidesVisible);
