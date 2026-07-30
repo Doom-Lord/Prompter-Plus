@@ -79,8 +79,8 @@
   #script{
     position:relative; will-change:transform;
     font-family:var(--font-prompter); font-weight:700; letter-spacing:0.01em;
-    color:var(--text-white); line-height:1.5; text-align:left;
-    font-size:40px; padding:2px 4px;
+    color:var(--text-white); line-height:1.5; text-align:center;
+    font-size:40px; padding:2px 4px; outline:none;
   }
   #script.select-mode{ -webkit-user-select:text; user-select:text; cursor:text; }
   #script.scroll-mode{ -webkit-user-select:none; user-select:none; cursor:grab; }
@@ -174,7 +174,8 @@
 
   <div class="ctrl-cluster" id="top-right-ctrl">
     <button class="chip" id="guides-toggle">Guides</button>
-    <button class="chip" id="mode-toggle">Select Text</button>
+    <button class="chip active" id="align-toggle">Align: Center</button>
+    <button class="chip" id="mode-toggle">Edit Script</button>
     <button class="clear-color" id="clear-color-btn" title="Clear color">×</button>
     <div class="swatch" data-c="green" title="Green"></div>
     <div class="swatch" data-c="yellow" title="Yellow"></div>
@@ -210,6 +211,7 @@
   var guidesWrap = document.getElementById("guides");
   var guidesToggle = document.getElementById("guides-toggle");
   var modeToggle = document.getElementById("mode-toggle");
+  var alignToggle = document.getElementById("align-toggle");
   var clearColorBtn = document.getElementById("clear-color-btn");
   var swatches = document.querySelectorAll(".swatch");
 
@@ -237,6 +239,7 @@
   var state = {
     margin: { top: 12, bottom: 12, left: 10, right: 10 },
     fontSize: 40,
+    align: "center",
     guidesVisible: true,
     selectMode: false,
     scrollOffset: 0
@@ -249,7 +252,8 @@
   }
   function savePrefs(){
     localStorage.setItem(PREFS_KEY, JSON.stringify({
-      margin: state.margin, fontSize: state.fontSize, guidesVisible: state.guidesVisible
+      margin: state.margin, fontSize: state.fontSize,
+      guidesVisible: state.guidesVisible, align: state.align
     }));
   }
   function loadScript(){
@@ -399,15 +403,39 @@
     savePrefs();
   });
 
-  // ---------- select / scroll mode ----------
-  function setMode(select){
-    state.selectMode = select;
-    scriptEl.classList.toggle("select-mode", select);
-    scriptEl.classList.toggle("scroll-mode", !select);
-    modeToggle.classList.toggle("active", select);
-    modeToggle.textContent = select ? "Scroll Text" : "Select Text";
+  // ---------- edit / scroll mode ----------
+  function setMode(editing){
+    state.selectMode = editing;
+    scriptEl.classList.toggle("select-mode", editing);
+    scriptEl.classList.toggle("scroll-mode", !editing);
+    scriptEl.contentEditable = editing ? "true" : "false";
+    modeToggle.classList.toggle("active", editing);
+    modeToggle.textContent = editing ? "Done Editing" : "Edit Script";
+    if(editing){
+      try{ document.execCommand("defaultParagraphSeparator", false, "p"); }catch(e){}
+      scriptEl.focus();
+    }
   }
   modeToggle.addEventListener("click", function(){ setMode(!state.selectMode); });
+
+  // auto-save edits made directly in the browser (debounced)
+  var editSaveTimer = null;
+  scriptEl.addEventListener("input", function(){
+    clearTimeout(editSaveTimer);
+    editSaveTimer = setTimeout(persistScript, 400);
+  });
+
+  // ---------- alignment ----------
+  function setAlign(align){
+    state.align = align;
+    scriptEl.style.textAlign = align;
+    alignToggle.textContent = "Align: " + (align === "center" ? "Center" : "Left");
+    alignToggle.classList.toggle("active", align === "center");
+  }
+  alignToggle.addEventListener("click", function(){
+    setAlign(state.align === "center" ? "left" : "center");
+    savePrefs();
+  });
 
   // ---------- text size ----------
   function applySize(){
@@ -519,6 +547,7 @@
       state.margin = prefs.margin || state.margin;
       state.fontSize = prefs.fontSize || state.fontSize;
       state.guidesVisible = prefs.guidesVisible !== false;
+      state.align = prefs.align || state.align;
     }
     var saved = loadScript();
     if(saved && saved.html){
@@ -528,6 +557,7 @@
     }
     guidesWrap.classList.toggle("hidden", !state.guidesVisible);
     guidesToggle.classList.toggle("active", state.guidesVisible);
+    setAlign(state.align);
     setMode(false);
     applySize();
     renderMargins();
