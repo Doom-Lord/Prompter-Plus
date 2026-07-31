@@ -104,6 +104,7 @@
   }
   #top-right-ctrl{ top:16px; right:20px; }
   #bottom-right-ctrl{ bottom:20px; right:24px; }
+  #bottom-left-ctrl{ bottom:20px; left:20px; }
 
   .chip{
     font-family:var(--font-ui); font-size:11px; padding:6px 10px; border-radius:6px;
@@ -220,15 +221,18 @@
   </div>
 
   <div class="ctrl-cluster" id="top-right-ctrl">
-    <button class="chip" id="library-toggle">Library</button>
-    <button class="chip" id="guides-toggle">Guides</button>
-    <button class="chip active" id="align-toggle">Align: Center</button>
     <button class="chip" id="mode-toggle">Edit Script</button>
     <button class="clear-color disabled" id="clear-color-btn" title="Clear color">×</button>
     <div class="swatch disabled" data-c="green" title="Green"></div>
     <div class="swatch disabled" data-c="yellow" title="Yellow"></div>
     <div class="swatch disabled" data-c="purple" title="Purple"></div>
     <div class="swatch disabled" data-c="orange" title="Orange"></div>
+  </div>
+
+  <div class="ctrl-cluster" id="bottom-left-ctrl">
+    <button class="chip" id="library-toggle">Library</button>
+    <button class="chip" id="guides-toggle">Guides</button>
+    <button class="chip active" id="align-toggle">Align: Center</button>
   </div>
 
   <div class="ctrl-cluster" id="bottom-right-ctrl">
